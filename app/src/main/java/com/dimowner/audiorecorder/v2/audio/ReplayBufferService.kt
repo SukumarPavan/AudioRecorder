@@ -293,20 +293,18 @@ class ReplayBufferService : Service() {
     )
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.replay_buffer_title),
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = getString(R.string.replay_buffer_channel_description)
-                setShowBadge(false)
-                setSound(null, null)
-                enableLights(false)
-                enableVibration(false)
-            }
-            notificationManager?.createNotificationChannel(channel)
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            getString(R.string.replay_buffer_title),
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = getString(R.string.replay_buffer_channel_description)
+            setShowBadge(false)
+            setSound(null, null)
+            enableLights(false)
+            enableVibration(false)
         }
+        notificationManager?.createNotificationChannel(channel)
     }
 
     private fun buildNotification(state: ReplayBufferState): Notification {
