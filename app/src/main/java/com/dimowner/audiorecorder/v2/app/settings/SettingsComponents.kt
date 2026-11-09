@@ -139,7 +139,6 @@ fun SettingsItemCheckBox(
     onCheckedChange: ((Boolean) -> Unit),
     enabled: Boolean = true,
 ) {
-    val checkState = remember { mutableStateOf(checked) }
     Row(
         modifier = Modifier
             .wrapContentHeight()
@@ -168,12 +167,12 @@ fun SettingsItemCheckBox(
                 )
             ),
         )
+        // Controlled by [checked]: the switch shows what the caller's state says, so a change the
+        // caller refuses (a denied permission, too little free space) springs back instead of
+        // staying visually on.
         Switch(
-            checked = checkState.value,
-            onCheckedChange = {
-                checkState.value = it
-                onCheckedChange(it)
-            },
+            checked = checked,
+            onCheckedChange = onCheckedChange,
             enabled = enabled,
             modifier = Modifier.padding(8.dp)
         )
