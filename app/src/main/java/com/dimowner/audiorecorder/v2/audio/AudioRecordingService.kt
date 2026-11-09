@@ -155,6 +155,10 @@ class AudioRecordingService : Service() {
     @IoDispatcher
     lateinit var ioDispatcher: CoroutineDispatcher
 
+    /** The instant replay buffer, which gives up the microphone while a recording runs. */
+    @Inject
+    lateinit var replayBufferRecorder: ReplayBufferRecorder
+
     private val serviceJob = SupervisorJob()
     private val serviceScope by lazy { CoroutineScope(ioDispatcher + serviceJob) }
 
@@ -257,6 +261,10 @@ class AudioRecordingService : Service() {
                 // through, including the home screen widget, which otherwise records over the
                 // track that is playing.
                 stopPlaybackBeforeRecording()
+                // Same reasoning for the instant replay buffer: it must release the microphone
+                // before the recorder opens it. Blocks until its capture has stopped; it resumes
+                // in stopForegroundService(), keeping what it buffered before.
+                replayBufferRecorder.pauseForRecording()
                 // The projection has to exist before handleStartRecording() picks an input, but
                 // it can only be created once the service is foreground with the mediaProjection
                 // type (enforced from Android 14), hence this ordering.
@@ -939,6 +947,9 @@ class AudioRecordingService : Service() {
 
     private fun stopForegroundService() {
         isStartingRecording = false
+        // Every way out of a recording (stop, failure, cancel) ends here, so the instant replay
+        // buffer gets the microphone back exactly once per recording session.
+        replayBufferRecorder.resumeAfterRecording()
         releaseMediaProjection()
         recordingAmplitudes.clear()
         totalRecordingSampleCount = 0
