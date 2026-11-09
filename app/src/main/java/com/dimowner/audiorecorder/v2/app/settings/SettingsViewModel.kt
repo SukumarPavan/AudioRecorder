@@ -17,6 +17,7 @@
 package com.dimowner.audiorecorder.v2.app.settings
 
 import android.content.Context
+import android.os.StatFs
 import android.os.Parcelable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
@@ -487,7 +488,7 @@ internal class SettingsViewModel @Inject constructor(
     private fun hasSpaceForReplayBuffer(minutes: Int): Boolean =
         ReplayBufferConfig.hasEnoughSpace(
             minutes = minutes,
-            bufferDirFreeBytes = ReplayBufferService.bufferDirectory(appContext).usableSpace,
+            bufferDirFreeBytes = StatFs(ReplayBufferService.bufferDirectory(appContext).path).availableBytes,
             recordsDirFreeBytes = fileDataSource.getAvailableSpace(),
         )
 
