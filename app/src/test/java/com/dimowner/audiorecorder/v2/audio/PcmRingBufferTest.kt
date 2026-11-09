@@ -205,64 +205,124 @@ class PcmRingBufferTest {
     // ---- concurrent writes ----
 
     /**
-     * Each 4-byte frame carries its own index, so a snapshot is correct if its frames are whole,
-     * strictly increasing (in order, never torn) and end at or after where the snapshot began.
+     * Runs a writer thread that stores consecutive frame indexes (4-byte frames), split into
+     * writes that are not frame aligned. It first fills the buffer past one lap as fast as it
+     * can, then keeps writing at [bytesPerSecond] (unthrottled when 0), and runs [block] while
+     * it is going.
      */
-    @Test
-    fun `snapshots taken while the writer runs are whole frames in order`() {
+    private fun withRunningWriter(
+        buffer: PcmRingBuffer,
+        bytesPerSecond: Int,
+        block: () -> Unit,
+    ) {
         val frameSize = 4
-        val capacityFrames = 50_000 // 200 KB: several snapshot chunks, many laps during the test
-        newBuffer(capacity = capacityFrames.toLong() * frameSize, frameSize = frameSize).use { buffer ->
-            val running = AtomicBoolean(true)
-            val writerError = AtomicReference<Throwable?>(null)
-            val started = CountDownLatch(1)
-            val writer = Thread {
-                try {
-                    var index = 0
-                    val chunk = ByteBuffer.allocate(frameSize * 317).order(ByteOrder.LITTLE_ENDIAN)
-                    val bytes = chunk.array()
-                    while (running.get()) {
-                        chunk.clear()
-                        while (chunk.remaining() >= frameSize) chunk.putInt(index++)
-                        // Split at an odd offset so individual writes are not frame aligned.
-                        val split = 4 * 101 + 3
-                        buffer.write(bytes, 0, split)
-                        buffer.write(bytes, split, bytes.size - split)
-                        if (index > capacityFrames) started.countDown()
+        val capacityFrames = buffer.capacity / frameSize
+        val running = AtomicBoolean(true)
+        val writerError = AtomicReference<Throwable?>(null)
+        val wrapped = CountDownLatch(1)
+        val writer = Thread {
+            try {
+                var index = 0
+                val chunk = ByteBuffer.allocate(frameSize * 317).order(ByteOrder.LITTLE_ENDIAN)
+                val bytes = chunk.array()
+                val pauseNanos = if (bytesPerSecond > 0) bytes.size * 1_000_000_000L / bytesPerSecond else 0L
+                while (running.get()) {
+                    chunk.clear()
+                    while (chunk.remaining() >= frameSize) chunk.putInt(index++)
+                    // Split at an odd offset so individual writes are not frame aligned.
+                    val split = 4 * 101 + 3
+                    buffer.write(bytes, 0, split)
+                    buffer.write(bytes, split, bytes.size - split)
+                    if (index > capacityFrames) {
+                        wrapped.countDown()
+                        if (pauseNanos > 0) Thread.sleep(pauseNanos / 1_000_000, (pauseNanos % 1_000_000).toInt())
                     }
-                } catch (t: Throwable) {
-                    writerError.set(t)
-                    started.countDown()
                 }
+            } catch (t: Throwable) {
+                writerError.set(t)
+                wrapped.countDown()
             }
-            writer.start()
-            assertTrue("writer did not wrap in time", started.await(30, TimeUnit.SECONDS))
-
-            repeat(20) { round ->
-                val before = buffer.totalBytesWritten / frameSize
-                val out = tempFolder.newFile("concurrent-$round.wav")
-                val dataLen = buffer.snapshotToWav(out)
-                assertEquals(0L, dataLen % frameSize)
-                assertTrue(dataLen in 1..capacityFrames.toLong() * frameSize)
-
-                val data = out.pcmData()
-                assertEquals(dataLen.toInt(), data.size)
-                var previous = data.intLe(0) - 1
-                var i = 0
-                while (i < data.size) {
-                    val value = data.intLe(i)
-                    assertTrue("frame $value after $previous is out of order", value > previous)
-                    previous = value
-                    i += frameSize
-                }
-                // The snapshot ends at the head as it was when it started.
-                assertTrue(previous + 1 >= before)
-                assertEquals(dataLen, out.length() - WAV_HEADER_SIZE)
-                assertEquals(dataLen.toInt(), out.readBytes().intLe(40))
-            }
+        }
+        writer.start()
+        try {
+            assertTrue("writer did not wrap in time", wrapped.await(30, TimeUnit.SECONDS))
+            writerError.get()?.let { throw AssertionError("writer failed", it) }
+            block()
+        } finally {
             running.set(false)
             writer.join(5_000)
-            writerError.get()?.let { throw AssertionError("writer failed", it) }
+        }
+        writerError.get()?.let { throw AssertionError("writer failed", it) }
+    }
+
+    /** Reads the frame indexes of a snapshot, checking its size and header on the way. */
+    private fun File.frameIndexes(dataLen: Long): IntArray {
+        assertEquals(0L, dataLen % 4)
+        assertEquals(dataLen, length() - WAV_HEADER_SIZE)
+        val bytes = readBytes()
+        assertEquals(dataLen.toInt(), bytes.intLe(40))
+        assertEquals(dataLen.toInt() + 36, bytes.intLe(4))
+        val data = bytes.copyOfRange(WAV_HEADER_SIZE, bytes.size)
+        return IntArray(data.size / 4) { data.intLe(it * 4) }
+    }
+
+    /**
+     * Real capture writes 32 KB/s; this writer runs ~10x faster. A snapshot must then be the
+     * window as it was when the snapshot started: contiguous, in order, ending at the head.
+     */
+    @Test
+    fun `snapshot during realistic concurrent writes is the full window in order`() {
+        val capacityFrames = 512 * 1024 // 2 MiB: several snapshot chunks
+        newBuffer(capacity = capacityFrames * 4L, frameSize = 4).use { buffer ->
+            withRunningWriter(buffer, bytesPerSecond = 320_000) {
+                repeat(5) { round ->
+                    val before = buffer.totalBytesWritten / 4
+                    val out = tempFolder.newFile("realistic-$round.wav")
+                    val frames = out.frameIndexes(buffer.snapshotToWav(out))
+                    val after = buffer.totalBytesWritten / 4
+
+                    for (i in 1 until frames.size) {
+                        assertEquals("gap or reordering at frame $i", frames[i - 1] + 1, frames[i])
+                    }
+                    val endExclusive = frames.last() + 1L
+                    assertTrue("snapshot ended at $endExclusive, before $before", endExclusive >= before)
+                    assertTrue("snapshot ended at $endExclusive, after $after", endExclusive <= after)
+                    // Never older than one window back from its end...
+                    assertTrue(frames.first() >= endExclusive - capacityFrames)
+                    // ...and the only audio it may miss is the oldest, overwritten by what the
+                    // writer added while the copy ran (normally nothing at this rate).
+                    assertTrue(
+                        "snapshot has ${frames.size} frames, writer added ${after - before}",
+                        frames.size >= capacityFrames - (after - before)
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Stress: an unthrottled writer (orders of magnitude faster than capture) may lap a snapshot
+     * in progress, even repeatedly, so a snapshot can come out short or empty. Overwritten audio
+     * must then be skipped, never copied out of order or torn: frames stay whole and strictly
+     * increasing, and the header always matches the data.
+     */
+    @Test
+    fun `snapshot during unthrottled concurrent writes stays whole and ordered`() {
+        val capacityFrames = 50_000
+        newBuffer(capacity = capacityFrames * 4L, frameSize = 4).use { buffer ->
+            withRunningWriter(buffer, bytesPerSecond = 0) {
+                repeat(20) { round ->
+                    val out = tempFolder.newFile("stress-$round.wav")
+                    val frames = out.frameIndexes(buffer.snapshotToWav(out))
+                    assertTrue(frames.size <= capacityFrames)
+                    for (i in 1 until frames.size) {
+                        assertTrue(
+                            "frame ${frames[i]} after ${frames[i - 1]} is out of order",
+                            frames[i] > frames[i - 1]
+                        )
+                    }
+                }
+            }
         }
     }
 
