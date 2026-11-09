@@ -77,6 +77,8 @@ import com.dimowner.audiorecorder.v2.data.model.AudioSource
 import com.dimowner.audiorecorder.v2.data.model.PlaybackSpeed
 import com.dimowner.audiorecorder.v2.data.model.Record
 import com.dimowner.audiorecorder.v2.analytics.AnalyticsTracker
+import com.dimowner.audiorecorder.v2.audio.ReplayBufferRecorder
+import com.dimowner.audiorecorder.v2.audio.ReplayBufferService
 import com.dimowner.audiorecorder.v2.data.model.isSystemAudioCaptureSupported
 import com.dimowner.audiorecorder.v2.di.qualifiers.IoDispatcher
 import com.dimowner.audiorecorder.v2.di.qualifiers.MainDispatcher
@@ -105,6 +107,7 @@ class HomeViewModel @Inject constructor(
     private val audioPlayer: PlayerContractNew.Player,
     private val audioManagerHelper: AudioManagerHelper,
     private val analyticsTracker: AnalyticsTracker,
+    private val replayBufferRecorder: ReplayBufferRecorder,
     @param:MainDispatcher private val mainDispatcher: CoroutineDispatcher,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     @ApplicationContext context: Context,
@@ -210,6 +213,21 @@ class HomeViewModel @Inject constructor(
         bindPlaybackService()
         bindRecordingService()
         subscribePlayerUpdates()
+
+        viewModelScope.launch {
+            replayBufferRecorder.state.collect { replay ->
+                // Offered only while there is something to save and the recorder isn't busy
+                // with a regular recording (the bottom bar owns that state).
+                _state.value = _state.value.copy(
+                    replayBufferSaveMinutes = if (replay.isRunning && !replay.isPausedForRecording) {
+                        replay.durationMinutes
+                    } else {
+                        0
+                    },
+                    isReplayBufferSaving = replay.isSaving,
+                )
+            }
+        }
 
         // Register AudioManagerHelper and subscribe to Bluetooth mic state
         _state.value = _state.value.copy(alwaysUseBluetoothMic = prefs.alwaysUseBluetoothMic)
@@ -571,6 +589,12 @@ class HomeViewModel @Inject constructor(
     }
 
     fun onStart() {
+        // The instant replay buffer has no boot start and is not sticky, so it is (re)started
+        // whenever the app comes to the foreground - the only time Android 14 allows it.
+        ReplayBufferService.startIfEnabled(
+            getApplication<Application>().applicationContext, prefs, replayBufferRecorder
+        )
+
         // Re-subscribe to recording service flows if the service is already bound
         // but the jobs were cancelled (e.g. after navigating away and back).
         recordingService?.let { service ->
@@ -1281,6 +1305,8 @@ class HomeViewModel @Inject constructor(
                 }
             }
             HomeScreenAction.OnStopHomeScreen -> onStop()
+            HomeScreenAction.SaveReplayBuffer ->
+                ReplayBufferService.save(getApplication<Application>().applicationContext)
             is HomeScreenAction.ImportAudioFile -> importAudioFile(action.uri)
             HomeScreenAction.ShareActiveRecord -> shareActiveRecord()
             HomeScreenAction.ShowActiveRecordInfo -> showActiveRecordInfo()
@@ -1496,6 +1522,9 @@ class HomeViewModel @Inject constructor(
 
 data class HomeScreenState(
     val waveformState: WaveformState = WaveformState(),
+    /** Length of the running instant replay buffer, or 0 when its save button is hidden. */
+    val replayBufferSaveMinutes: Int = 0,
+    val isReplayBufferSaving: Boolean = false,
     val startTime: String = "",
     val endTime: String = "",
     val time: String = TimeUtils.formatTimeIntervalHourMinSec2(0),
@@ -1566,6 +1595,7 @@ sealed class HomeScreenAction {
     data object OnStartHomeScreen : HomeScreenAction()
     data object LoadActiveRecordAndPlay : HomeScreenAction()
     data object OnStopHomeScreen : HomeScreenAction()
+    data object SaveReplayBuffer : HomeScreenAction()
     data class ImportAudioFile(val uri: Uri) : HomeScreenAction()
     data object ShareActiveRecord : HomeScreenAction()
     data object ShowActiveRecordInfo : HomeScreenAction()
