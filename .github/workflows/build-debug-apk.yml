@@ -1,0 +1,57 @@
+# Builds the debugConfig APK (package com.dimowner.audiorecorder.debug, installs next to the
+# Play Store app) from any branch, runs the unit tests, and uploads the APK as an artifact.
+# Lives only on this fork's master; it is not part of any upstream pull request.
+name: Build debug APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to build
+        required: true
+        default: feat/instant-replay-buffer
+      run_tests:
+        description: Run unit tests too
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebugConfigDebug --console=plain
+
+      - name: Unit tests
+        if: ${{ inputs.run_tests }}
+        run: ./gradlew :app:testDebugConfigDebugUnitTest --console=plain
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: audiorecorder-debug-${{ github.run_number }}
+          path: app/build/outputs/apk/debugConfig/debug/*.apk
+          retention-days: 14
+
+      - name: Upload test report
+        if: ${{ always() && inputs.run_tests }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-${{ github.run_number }}
+          path: app/build/reports/tests/
+          retention-days: 14
+          if-no-files-found: ignore
