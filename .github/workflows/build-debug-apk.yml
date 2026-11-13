@@ -38,7 +38,7 @@ jobs:
         run: ./gradlew :app:assembleDebugConfigDebug --console=plain
 
       - name: Unit tests
-        if: ${{ inputs.run_tests != false }}
+        if: ${{ (github.event_name == 'push' || inputs.run_tests) }}
         run: ./gradlew :app:testDebugConfigDebugUnitTest --console=plain
 
       - name: Upload APK
@@ -49,7 +49,7 @@ jobs:
           retention-days: 14
 
       - name: Upload test report
-        if: ${{ always() && inputs.run_tests != false }}
+        if: ${{ always() && (github.event_name == 'push' || inputs.run_tests) }}
         uses: actions/upload-artifact@v4
         with:
           name: test-report-${{ github.run_number }}
