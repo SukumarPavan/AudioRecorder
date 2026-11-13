@@ -487,6 +487,7 @@
     <string name="name_format_preset_custom">Personalitzat</string>
     <!-- Instant replay -->
     <string name="replay_buffer_title">Repetició instantània</string>
+    <string name="replay_buffer_description">Grava en segon pla i només conserva els últims minuts. Desa\'ls quan vulguis.</string>
     <string name="replay_buffer_duration">Durada de la repetició instantània</string>
     <string name="replay_buffer_duration_subtitle">Utilitza uns %s d\'emmagatzematge</string>
     <string name="replay_buffer_option">%1$d min (%2$s)</string>

@@ -481,6 +481,7 @@
     <string name="name_format_preset_custom">Власний</string>
     <!-- Instant replay -->
     <string name="replay_buffer_title">Миттєвий повтор</string>
+    <string name="replay_buffer_description">Записує у фоні й зберігає лише останні хвилини. Збережіть їх будь-коли.</string>
     <string name="replay_buffer_duration">Тривалість миттєвого повтору</string>
     <string name="replay_buffer_duration_subtitle">Займає близько %s пам’яті</string>
     <string name="replay_buffer_option">%1$d хв (%2$s)</string>

@@ -502,6 +502,7 @@
 	<string name="name_format_preset_record" translatable="false">Record</string>
     <!-- Instant replay -->
     <string name="replay_buffer_title">Instant replay</string>
+    <string name="replay_buffer_description">Records in the background and keeps only the last minutes. Save them anytime.</string>
     <string name="replay_buffer_duration">Instant replay length</string>
     <string name="replay_buffer_duration_subtitle">Uses about %s of storage</string>
     <string name="replay_buffer_option">%1$d min (%2$s)</string>

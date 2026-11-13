@@ -461,6 +461,7 @@
     <string name="name_format_preset_custom">Персонализиран</string>
     <!-- Instant replay -->
     <string name="replay_buffer_title">Незабавно повторение</string>
+    <string name="replay_buffer_description">Записва във фонов режим и пази само последните минути. Запазете ги по всяко време.</string>
     <string name="replay_buffer_duration">Продължителност на незабавното повторение</string>
     <string name="replay_buffer_duration_subtitle">Използва около %s от хранилището</string>
     <string name="replay_buffer_option">%1$d мин (%2$s)</string>

@@ -520,6 +520,7 @@
     <string name="name_format_preset_custom">مخصص</string>
     <!-- Instant replay -->
     <string name="replay_buffer_title">إعادة التشغيل الفوري</string>
+    <string name="replay_buffer_description">يسجّل في الخلفية ويحتفظ بآخر الدقائق فقط. احفظها في أي وقت.</string>
     <string name="replay_buffer_duration">مدة إعادة التشغيل الفوري</string>
     <string name="replay_buffer_duration_subtitle">يستخدم حوالي %s من مساحة التخزين</string>
     <string name="replay_buffer_option">%1$d دقيقة (%2$s)</string>

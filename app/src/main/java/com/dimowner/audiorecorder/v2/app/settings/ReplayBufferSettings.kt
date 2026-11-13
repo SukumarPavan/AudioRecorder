@@ -89,6 +89,7 @@ internal fun ReplayBufferSettings(
     SettingsItemCheckBox(
         checked = isEnabled,
         label = stringResource(R.string.replay_buffer_title),
+        description = stringResource(R.string.replay_buffer_description),
         iconRes = R.drawable.ic_history,
         onCheckedChange = { checked ->
             if (!checked) {

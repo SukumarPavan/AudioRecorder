@@ -490,6 +490,7 @@
     <string name="name_format_preset_custom">カスタム</string>
     <!-- Instant replay -->
     <string name="replay_buffer_title">インスタントリプレイ</string>
+    <string name="replay_buffer_description">バックグラウンドで録音し、直近の数分だけを保持します。いつでも保存できます。</string>
     <string name="replay_buffer_duration">インスタントリプレイの長さ</string>
     <string name="replay_buffer_duration_subtitle">約%sのストレージを使用</string>
     <string name="replay_buffer_option">%1$d分 (%2$s)</string>

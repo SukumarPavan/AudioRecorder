@@ -489,6 +489,7 @@
     <string name="name_format_preset_custom">Personalizzato</string>
     <!-- Instant replay -->
     <string name="replay_buffer_title">Replay istantaneo</string>
+    <string name="replay_buffer_description">Registra in background e conserva solo gli ultimi minuti. Salvali quando vuoi.</string>
     <string name="replay_buffer_duration">Durata del replay istantaneo</string>
     <string name="replay_buffer_duration_subtitle">Usa circa %s di spazio</string>
     <string name="replay_buffer_option">%1$d min (%2$s)</string>

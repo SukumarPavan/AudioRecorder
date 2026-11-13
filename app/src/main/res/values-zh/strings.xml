@@ -445,6 +445,7 @@
     <string name="name_format_preset_custom">自定义</string>
     <!-- Instant replay -->
     <string name="replay_buffer_title">即时回放</string>
+    <string name="replay_buffer_description">在后台录音，仅保留最近几分钟，可随时保存。</string>
     <string name="replay_buffer_duration">即时回放时长</string>
     <string name="replay_buffer_duration_subtitle">约占用 %s 存储空间</string>
     <string name="replay_buffer_option">%1$d 分钟（%2$s）</string>

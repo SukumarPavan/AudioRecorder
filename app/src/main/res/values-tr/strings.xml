@@ -482,6 +482,7 @@
     <string name="name_format_preset_custom">Özel</string>
     <!-- Instant replay -->
     <string name="replay_buffer_title">Anında tekrar</string>
+    <string name="replay_buffer_description">Arka planda kaydeder ve yalnızca son dakikaları tutar. İstediğiniz zaman kaydedin.</string>
     <string name="replay_buffer_duration">Anında tekrar süresi</string>
     <string name="replay_buffer_duration_subtitle">Yaklaşık %s depolama alanı kullanır</string>
     <string name="replay_buffer_option">%1$d dk (%2$s)</string>

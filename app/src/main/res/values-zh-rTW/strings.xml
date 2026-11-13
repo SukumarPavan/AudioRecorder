@@ -479,6 +479,7 @@
     <string name="name_format_preset_custom">自訂</string>
     <!-- Instant replay -->
     <string name="replay_buffer_title">即時重播</string>
+    <string name="replay_buffer_description">在背景錄音，僅保留最近幾分鐘，可隨時儲存。</string>
     <string name="replay_buffer_duration">即時重播長度</string>
     <string name="replay_buffer_duration_subtitle">約佔用 %s 儲存空間</string>
     <string name="replay_buffer_option">%1$d 分鐘（%2$s）</string>

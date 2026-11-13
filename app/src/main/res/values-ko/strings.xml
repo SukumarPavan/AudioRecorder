@@ -482,6 +482,7 @@
     <string name="name_format_preset_custom">사용자 지정</string>
     <!-- Instant replay -->
     <string name="replay_buffer_title">즉시 다시 듣기</string>
+    <string name="replay_buffer_description">백그라운드에서 녹음하며 최근 몇 분만 보관합니다. 언제든지 저장할 수 있습니다.</string>
     <string name="replay_buffer_duration">즉시 다시 듣기 길이</string>
     <string name="replay_buffer_duration_subtitle">저장 공간 약 %s 사용</string>
     <string name="replay_buffer_option">%1$d분 (%2$s)</string>

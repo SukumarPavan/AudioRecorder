@@ -508,6 +508,7 @@
     <string name="name_format_preset_custom">Niestandardowy</string>
     <!-- Instant replay -->
     <string name="replay_buffer_title">Natychmiastowa powtórka</string>
+    <string name="replay_buffer_description">Nagrywa w tle i przechowuje tylko ostatnie minuty. Zapisz je w dowolnej chwili.</string>
     <string name="replay_buffer_duration">Długość natychmiastowej powtórki</string>
     <string name="replay_buffer_duration_subtitle">Zajmuje około %s miejsca</string>
     <string name="replay_buffer_option">%1$d min (%2$s)</string>
