@@ -88,6 +88,7 @@ class ReplayBufferSaver @Inject constructor(
             }
             DecodeService.startNotificationV2(context, id, record.path, record.durationMills)
             Timber.d("ReplayBufferSaver: saved ${record.name} ($dataBytes bytes)")
+            recorder.notifySaved(id)
             return ReplayBufferSaveResult.Saved(id, record.name)
         } catch (e: IOException) {
             Timber.e(e, "ReplayBufferSaver: snapshot failed")

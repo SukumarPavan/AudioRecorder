@@ -78,6 +78,7 @@ import com.dimowner.audiorecorder.v2.data.model.PlaybackSpeed
 import com.dimowner.audiorecorder.v2.data.model.Record
 import com.dimowner.audiorecorder.v2.analytics.AnalyticsTracker
 import com.dimowner.audiorecorder.v2.audio.ReplayBufferRecorder
+import com.dimowner.audiorecorder.v2.audio.ReplayBufferState
 import com.dimowner.audiorecorder.v2.audio.ReplayBufferService
 import com.dimowner.audiorecorder.v2.data.model.isSystemAudioCaptureSupported
 import com.dimowner.audiorecorder.v2.di.qualifiers.IoDispatcher
@@ -216,16 +217,22 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             replayBufferRecorder.state.collect { replay ->
-                // Offered only while there is something to save and the recorder isn't busy
-                // with a regular recording (the bottom bar owns that state).
                 _state.value = _state.value.copy(
-                    replayBufferSaveMinutes = if (replay.isRunning && !replay.isPausedForRecording) {
-                        replay.durationMinutes
-                    } else {
-                        0
-                    },
+                    replayBufferSaveMinutes = replay.saveButtonMinutes(),
                     isReplayBufferSaving = replay.isSaving,
                 )
+            }
+        }
+        viewModelScope.launch {
+            replayBufferRecorder.savedRecords.collect { recordId ->
+                // Open the saved clip the way a just-stopped recording opens, unless that would
+                // swap the record out from under playback or a recording in progress.
+                if (!audioPlayer.isPlaying() && !audioPlayer.isPaused() && !_state.value.isRecording()) {
+                    withContext(ioDispatcher) {
+                        prefs.activeRecordId = recordId
+                        updateState()
+                    }
+                }
             }
         }
 
@@ -766,6 +773,8 @@ class HomeViewModel @Inject constructor(
                     // otherwise devices detected before this reset never reappear
                     // (bluetoothMicState is a StateFlow and won't re-emit an unchanged value).
                     val bluetoothState = audioManagerHelper.bluetoothMicState.value
+                    // Same for the instant replay save button: its StateFlow won't re-emit either.
+                    val replayState = replayBufferRecorder.state.value
                     _state.value = HomeScreenState(
                         bottomBarState = bottomBarState,
                         waveformState = WaveformState(),
@@ -775,6 +784,8 @@ class HomeViewModel @Inject constructor(
                         connectedBluetoothDevices = bluetoothState.connectedDevices,
                         selectedBluetoothDevice = bluetoothState.selectedDevice,
                         alwaysUseBluetoothMic = prefs.alwaysUseBluetoothMic,
+                        replayBufferSaveMinutes = replayState.saveButtonMinutes(),
+                        isReplayBufferSaving = replayState.isSaving,
                         // Preserve a pending local-storage info dialog across this full reset.
 //                        showLocalStorageInfoDialog = _state.value.showLocalStorageInfoDialog,
                     )
@@ -782,6 +793,14 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Length shown on the home screen's instant replay save button, or 0 to hide it: offered only
+     * while there is something to save and the recorder isn't busy with a regular recording (the
+     * bottom bar owns that state).
+     */
+    private fun ReplayBufferState.saveButtonMinutes(): Int =
+        if (isRunning && !isPausedForRecording) durationMinutes else 0
 
     private fun RecordingServiceState?.toBottomBarState(): BottomBarState {
         return if (this?.isPaused() == true) {

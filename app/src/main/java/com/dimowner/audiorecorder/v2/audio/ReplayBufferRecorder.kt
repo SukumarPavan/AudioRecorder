@@ -17,8 +17,11 @@ package com.dimowner.audiorecorder.v2.audio
 
 import android.media.AudioFormat
 import android.media.AudioRecord
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import timber.log.Timber
@@ -170,6 +173,15 @@ class ReplayBufferRecorder @Inject constructor() {
 
     internal fun setSaving(isSaving: Boolean) {
         _state.update { it.copy(isSaving = isSaving) }
+    }
+
+    private val _savedRecords = MutableSharedFlow<Long>(extraBufferCapacity = 1)
+
+    /** Ids of records saved from the buffer, so an open home screen can show the new one. */
+    val savedRecords: SharedFlow<Long> = _savedRecords.asSharedFlow()
+
+    internal fun notifySaved(recordId: Long) {
+        _savedRecords.tryEmit(recordId)
     }
 
     private fun stopLocked() {
