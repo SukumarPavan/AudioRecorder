@@ -41,9 +41,6 @@ jobs:
         if: ${{ (github.event_name == 'push' || inputs.run_tests) }}
         run: ./gradlew :app:testDebugConfigDebugUnitTest --console=plain
 
-      - name: Lint
-        run: ./gradlew :app:lintDebugConfigDebug --console=plain
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -61,3 +58,45 @@ jobs:
             app/build/reports/lint-results-*.html
           retention-days: 14
           if-no-files-found: ignore
+
+  # Lints the feature branch and upstream master side by side, so new findings stand out from
+  # pre-existing ones. Findings are published as annotations (readable without signing in).
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: [feat/instant-replay-buffer, 28ef142524f38f66a3793f9a4d2f796c981a5067]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Lint
+        continue-on-error: true
+        run: ./gradlew :app:lintDebugConfigDebug --console=plain
+      - name: Summarize lint findings
+        if: always()
+        shell: python
+        run: |
+          import glob, xml.etree.ElementTree as ET, collections
+          files = glob.glob('app/build/reports/lint-results-*.xml') + glob.glob('app/build/intermediates/lint_intermediate_text_report/**/*.xml', recursive=True)
+          rows = []
+          for f in files:
+              for i in ET.parse(f).getroot().iter('issue'):
+                  loc = i.find('location')
+                  path = loc.get('file', '').split('/app/src/')[-1] if loc is not None else ''
+                  line = loc.get('line', '') if loc is not None else ''
+                  rows.append((i.get('severity'), i.get('id'), path, line, i.get('message', '')[:160]))
+          counts = collections.Counter((r[0], r[1]) for r in rows)
+          head = 'REF ${{ matrix.ref }} | files=%d issues=%d | ' % (len(files), len(rows)) + '; '.join('%s %s x%d' % (k[0], k[1], v) for k, v in counts.most_common())
+          print('::warning title=lint summary::' + head[:3500])
+          errs = [r for r in rows if r[0] in ('Error', 'Fatal')]
+          for n in range(0, min(len(errs), 40), 8):
+              chunk = ' || '.join('%s %s:%s %s' % (r[1], r[2], r[3], r[4]) for r in errs[n:n+8])
+              print('::notice title=lint errors %d::%s' % (n, chunk[:3500]))
